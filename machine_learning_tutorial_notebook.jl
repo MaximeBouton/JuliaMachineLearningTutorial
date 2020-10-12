@@ -264,9 +264,9 @@ hint(md"""
 # ╔═╡ 0e523c10-0c41-11eb-2754-678393016da7
 function feature_augmentation(x)
 	# todo implement feature augmentation 
-	# new_x = x
-	dim, bs = size(x)
-	new_x = hcat(x[1,:],x[2,:], x[1,:].^2, x[2,:].^2, x[1,:].*x[2,:], ones(bs))'
+	new_x = x
+	# dim, bs = size(x)
+	# new_x = hcat(x[1,:],x[2,:], x[1,:].^2, x[2,:].^2, x[1,:].*x[2,:], ones(bs))'
 	return new_x
 end
 
@@ -511,7 +511,7 @@ In this section you will implement an automated hyperparameter search.
 question(md"""**Exercise:** Implement a random search algorithm and plot the performance in function of the hyperparameters""")
 
 # ╔═╡ Cell order:
-# ╠═088beae0-0b62-11eb-0f0e-9f29aa060ed2
+# ╟─088beae0-0b62-11eb-0f0e-9f29aa060ed2
 # ╠═6e577570-0c29-11eb-11a3-91fc867a908e
 # ╟─55023282-0b62-11eb-1c12-4942101aece9
 # ╟─9f1937ee-0b63-11eb-154d-0f51431234ec
@@ -528,7 +528,7 @@ question(md"""**Exercise:** Implement a random search algorithm and plot the per
 # ╠═2e16ec92-0be6-11eb-30a5-a7701a02a792
 # ╟─bd7fb920-0be6-11eb-36c0-afd7d1e5979b
 # ╟─7c62e920-0be7-11eb-0f99-1b7eaad426ec
-# ╠═f2d7cbf0-0c39-11eb-20a0-47c3d72d22f0
+# ╟─f2d7cbf0-0c39-11eb-20a0-47c3d72d22f0
 # ╟─0e6971c2-0c3a-11eb-19b8-73a32ae79473
 # ╠═9f6a4740-0be9-11eb-20f7-affaacd9a460
 # ╟─83b2a310-0c0e-11eb-1a3a-f1d266f05a81
