@@ -7,10 +7,10 @@ It consists of fitting a model on a synthetic dataset. It provides an interactiv
 
 - Install julia 1.5, download it from here: https://julialang.org/downloads/ 
 - Add julia to your path
-- clone this project: `git clone `
+- clone this project: `git clone https://github.com/MaximeBouton/JuliaMachineLearningTutorial.git`
 - go to the directory of the project and run julia: 
 ```bash 
-cd MLTutorial 
+cd JuliaMachineLearningTutorial 
 julia --project 
 ```
 - install the dependencies by running the following in the Julia REPL: 
