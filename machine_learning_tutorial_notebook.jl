@@ -19,7 +19,7 @@ begin
 	using Flux.Data: DataLoader
 	using Flux: params, update!
 	using Flux # for deep learning and autodiff
-	using MLJ: make_blobs, make_circles, partition # utilities for data set creation and others 
+	using MLJ: make_blobs, make_circles, make_moons, partition # utilities for data set creation and others 
 	using MLJBase: matrix
 	using Statistics
 	using Plots
@@ -58,7 +58,7 @@ You can play around with the number of data points using the variables below.
 """
 
 # ╔═╡ f5ac26e2-0b63-11eb-12e0-7d668db8003a
-n_pts = 200;
+n_pts = 100;
 
 # ╔═╡ ffc6c7d0-0b62-11eb-1a2b-53fa23f8ac25
 md""" 
@@ -82,6 +82,20 @@ X_circle, Y_circle = make_circles(n_pts, factor=0.7, noise=0.05);
 # ╔═╡ 5ed99e00-0b63-11eb-1dac-b5d788680860
 scatter(X_circle.x1, X_circle.x2, color=convert.(Int64, Y_circle), aspect_ratio=:equal, legend=false)
 
+# ╔═╡ d8974f70-0d03-11eb-01e1-5b8d9c77bfdc
+X_moon, Y_moon = make_moons(n_pts, noise=0.05);
+
+# ╔═╡ f6fdc022-0d03-11eb-3b9d-3d9baff1e067
+scatter(X_moon.x1, X_moon.x2, color=convert.(Int64, Y_moon), aspect_ratio=:equal, legend=false)
+
+# ╔═╡ 547f2b70-0d05-11eb-1141-b3b6e716a630
+X_data, Y_data = X_circle, Y_circle;
+
+# ╔═╡ 2d7b55f0-0c40-11eb-1c51-1f99a8ce7c19
+tip(md"""
+**Use the cell above to toggle between the datasets e.g. "blob" or "circle"**
+""")
+
 # ╔═╡ 6d5a3452-0b66-11eb-1617-77d692d84564
 md"""
 ## 2. Problem formulation 
@@ -90,14 +104,24 @@ In this tutorial, the goal is to build a model, that can automatically classify 
 
 
 The model we are looking for is a function $f: \mathbb{R}^2 \rightarrow \{0, 1\}$ parameterized by $\theta$.
+We will learn a discriminative model, that is, we assume that $f(x;\theta) = P(y=1 | x)$.
 
-For our problem to be well formulated we need to find a metric to optimize. Do we want to maximize the average performance, the number of false positive, the number of false negative? 
 
-It is important to understand that there are often trade offs between the different objectives. Domain knowledge often dictates whether one is more important than the other. 
+A common assumption is to assume that each datapoint is drawn independently from the same distribution. With that assumption and objective in mind, we can show that maximizing the log likelihood of our data is equivalent to solving: 
 
-In this tutorial we will choose to find a function $f$ that maximizes the likelihood of the dataset. A common assumption is to assume that each datapoint is drawn independently from the same distribution. With that assumption and objective in mind, we can show that maximizing the log likelihood of our data is equivalent to solving: 
+Under this probabilistic approach, we can find a function $f$ that maximizes the likelihood of the dataset. The optimization problem can be formulated as follows:
+
+$$\max_{\theta} \prod_{(x,y)\in\mathcal{D}} P(y | x; \theta) $$
+
+$$ \max_{\theta} \log(\prod_{(x,y)\in\mathcal{D}} P(y | x; \theta)) $$
+
+$$ \max_{\theta} \sum_{(x,y)\in\mathcal{D}} \log(P(y | x; \theta)) $$
+
+or
 
 $$\min_{\theta} \frac{1}{|\mathcal{D}|}\sum_{(x,y)\in\mathcal{D}} L(x, y; \theta)$$
+
+We need to choose, $L$ such that our model reflects the true distribution of the data, 
 
 where 
 
@@ -113,7 +137,8 @@ end
 
 # ╔═╡ 1519a2b0-0be5-11eb-00ad-099ce6a6a134
 md"""
-Before we choose the model class and train it, let's decide on an evaluation metrics. As discussed above there are several candidates for classification problems: 
+
+Before we choose the model class and train it, let's decide on an evaluation metrics. It is important to understand that there are often trade offs between the different objectives. Domain knowledge often dictates whether one is more important than the other.  There are several candidates for classification problems: 
 - accuracy 
 - false positive rate 
 - false negative rate 
@@ -175,12 +200,12 @@ In logistic regression we assume a linear combination of model weights and input
 
 # ╔═╡ f2d7cbf0-0c39-11eb-20a0-47c3d72d22f0
 question(md"""
-**Logistic regression is a specific case of neural network, can you explain why?**
+**How does logistic regression relate to neural network?**
 """)
 
 # ╔═╡ 0e6971c2-0c3a-11eb-19b8-73a32ae79473
 hint(md"""
-The logistic regression model can be describe as a neural network with zero hidden layer. It only has an output layer. 
+The logistic regression model can be described as a neural network with zero hidden layer. It only has an output layer. 
 	"""
 )
 
@@ -202,6 +227,7 @@ function initialize_model(n_inputs, hiddens)
 	layers = []
 	# add layers one at a time
 	push!(layers, Dense(n_inputs, hiddens[1], relu)) 
+	
 	for i=1:length(hiddens)-1
 		push!(layers, Dense(hiddens[i], hiddens[i+1], relu))
 	end
@@ -264,9 +290,9 @@ hint(md"""
 # ╔═╡ 0e523c10-0c41-11eb-2754-678393016da7
 function feature_augmentation(x)
 	# todo implement feature augmentation 
-	new_x = x
-	# dim, bs = size(x)
-	# new_x = hcat(x[1,:],x[2,:], x[1,:].^2, x[2,:].^2, x[1,:].*x[2,:], ones(bs))'
+	#new_x = x
+	dim, bs = size(x)
+    new_x = hcat(x[1,:],x[2,:], x[1,:].^2, x[2,:].^2, x[1,:].*x[2,:], ones(bs))'
 	return new_x
 end
 
@@ -291,12 +317,7 @@ function process_data(X, Y)
 end
 
 # ╔═╡ b1303b30-0c05-11eb-1629-033109ccf3c4
-xtrain, ytrain, xtest, ytest = process_data(X_blob, Y_blob);
-
-# ╔═╡ 2d7b55f0-0c40-11eb-1c51-1f99a8ce7c19
-tip(md"""
-**Use the cell above to toggle between the two datasets "blob" or "circle"**
-""")
+xtrain, ytrain, xtest, ytest = process_data(X_data, Y_data);
 
 # ╔═╡ d0fc070e-0beb-11eb-16ee-697d37d49d4f
 md"""
@@ -391,10 +412,10 @@ We define a few plotting functions below, click on the eye to see the code
 
 # ╔═╡ 529fda72-0c10-11eb-0654-df3883c69244
 function plot_training_summary(n_epochs, train_loss, test_loss, train_accuracy, test_accuracy)
-	p1 = plot(1:n_epochs, train_loss, color=:blue, label="train loss", ylim=(0.1,1.)) 
-	plot!(p1, 1:n_epochs, test_loss, color=:orange, label="test loss", ylim=(0.1,1.))
-	p2 = plot(1:n_epochs, train_accuracy, color=:red, label="train accuracy", ylim=(0.5,1.)) 
-	plot!(p2, 1:n_epochs, test_accuracy, color=:green, label="test accuracy", ylim=(0.5,1.))
+	p1 = plot(1:n_epochs, train_loss, color=:blue, label="train loss") 
+	plot!(p1, 1:n_epochs, test_loss, color=:orange, label="test loss")
+	p2 = plot(1:n_epochs, train_accuracy, color=:red, label="train accuracy") 
+	plot!(p2, 1:n_epochs, test_accuracy, color=:green, label="test accuracy")
 	return plot(p1, p2, layout=(2,1))
 end
 
@@ -455,6 +476,7 @@ hiddens_dict = Dict("[]"=> [],
 						 "[4]" => [4], 
 						 "[32]"=> [32], 
 						 "[4,4]"=>[4,4], 
+						"[32,32]"=> [32,32],
 						"[32,32,32]" => [32,32,32]); 
 
 # ╔═╡ 2162d3e0-0c1a-11eb-2ae1-37197227b4f2
@@ -465,13 +487,13 @@ begin
 	
 	Let's build intuition on the effect of each hyperparameter 
 	
-	**Learning rate**: $(@bind η NumberField(0.00 : 0.0001 : 0.30, default=0.01))
+	**Learning rate**: $(@bind η NumberField(0.00 : 0.0001 : 0.90, default=0.01))
 	
 	**Batch size:** $(@bind bs Slider(1:1:n_pts, show_value=true, default=32))
 	
 	**Model structure:** $(@bind hiddenstr Select(collect(hiddens_dict)))
 	
-	**Number of epochs**: $(@bind n_epochs Slider(3:1:100, show_value=true, default=10))
+	**Number of epochs**: $(@bind n_epochs Slider(3:1:300, show_value=true, default=20))
 	
 	"""
 end
@@ -512,7 +534,7 @@ question(md"""**Exercise:** Implement a random search algorithm and plot the per
 
 # ╔═╡ Cell order:
 # ╟─088beae0-0b62-11eb-0f0e-9f29aa060ed2
-# ╠═6e577570-0c29-11eb-11a3-91fc867a908e
+# ╟─6e577570-0c29-11eb-11a3-91fc867a908e
 # ╟─55023282-0b62-11eb-1c12-4942101aece9
 # ╟─9f1937ee-0b63-11eb-154d-0f51431234ec
 # ╠═f5ac26e2-0b63-11eb-12e0-7d668db8003a
@@ -522,6 +544,10 @@ question(md"""**Exercise:** Implement a random search algorithm and plot the per
 # ╟─549d27c0-0b65-11eb-0246-754f34082820
 # ╠═468dd460-0b63-11eb-3b18-db9930297f4a
 # ╠═5ed99e00-0b63-11eb-1dac-b5d788680860
+# ╠═d8974f70-0d03-11eb-01e1-5b8d9c77bfdc
+# ╠═f6fdc022-0d03-11eb-3b9d-3d9baff1e067
+# ╠═547f2b70-0d05-11eb-1141-b3b6e716a630
+# ╟─2d7b55f0-0c40-11eb-1c51-1f99a8ce7c19
 # ╟─6d5a3452-0b66-11eb-1617-77d692d84564
 # ╠═bd9655c0-0be3-11eb-00a9-ddf68bdb4673
 # ╟─1519a2b0-0be5-11eb-00ad-099ce6a6a134
@@ -530,18 +556,17 @@ question(md"""**Exercise:** Implement a random search algorithm and plot the per
 # ╟─7c62e920-0be7-11eb-0f99-1b7eaad426ec
 # ╟─f2d7cbf0-0c39-11eb-20a0-47c3d72d22f0
 # ╟─0e6971c2-0c3a-11eb-19b8-73a32ae79473
-# ╠═9f6a4740-0be9-11eb-20f7-affaacd9a460
+# ╟─9f6a4740-0be9-11eb-20f7-affaacd9a460
 # ╟─83b2a310-0c0e-11eb-1a3a-f1d266f05a81
 # ╟─c6244c50-0c1b-11eb-0f17-0d84adbe2f73
 # ╟─2bbbfd10-0c1c-11eb-3bd7-2370e3cdc74d
 # ╠═c1541280-0c0e-11eb-3e99-d59f27ae2581
 # ╟─65e0e760-0c05-11eb-1226-81a5e9d5b658
-# ╠═9a458832-0c05-11eb-3fe5-b190450b9d11
+# ╟─9a458832-0c05-11eb-3fe5-b190450b9d11
 # ╟─3261d180-0c3a-11eb-163b-9fbc71570323
 # ╟─4d1dfee0-0c3a-11eb-141f-f9d612d2be4b
-# ╟─0e523c10-0c41-11eb-2754-678393016da7
+# ╠═0e523c10-0c41-11eb-2754-678393016da7
 # ╠═b1303b30-0c05-11eb-1629-033109ccf3c4
-# ╟─2d7b55f0-0c40-11eb-1c51-1f99a8ce7c19
 # ╟─d0fc070e-0beb-11eb-16ee-697d37d49d4f
 # ╟─cbfd84f2-0c18-11eb-2307-55f2f1646fe1
 # ╟─e599ea70-0c18-11eb-14ca-b541ef9de76e
